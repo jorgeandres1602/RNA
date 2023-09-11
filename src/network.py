@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 network.py
 ~~~~~~~~~~
@@ -22,6 +23,7 @@ class Network(object):
         self.biases = [np.random.randn(y, 1) for y in sizes[1:]]
         self.weights = [np.random.randn(y, x)
                         for x, y in zip(sizes[:-1], sizes[1:])]
+        self.parameters = {'biases': self.biases, 'weights': self.weights}
 
     def feedforward(self, a):
         """En esta función se evalúa 'a' en la funcion de activación."""
@@ -29,26 +31,38 @@ class Network(object):
             a = sigmoid(np.dot(w, a)+b)
         return a
 
-    def SGD(self, training_data, epochs, mini_batch_size, eta,
+    def RMSprop(self, training_data, epochs, mini_batch_size, eta,
             test_data=None):
-       
-        if test_data: n_test = len(test_data)
+        """Optimizador alternativo RMSprop"""
+        
+        if test_data: 
+            test_data = list(test_data)
+            n_test = len(test_data)
+        training_data=list(training_data)
         n = len(training_data)
-        for j in xrange(epochs):
-            """Revuelve los datos"""
-            random.shuffle(training_data) 
-            """Toma los datos del mini batch"""
+        epsilon = 1e-8  #Parámetros
+        beta = 0.9
+        squared_gradients = {parameter: np.zeros_like(parameter) for parameter in self.parameters}      
+        for j in range(epochs):
+            random.shuffle(training_data)
             mini_batches = [
                 training_data[k:k+mini_batch_size]
-                for k in xrange(0, n, mini_batch_size)]
+                for k in range(0, n, mini_batch_size)]
             for mini_batch in mini_batches:
-                """Actualiza los datos del mini batch"""
                 self.update_mini_batch(mini_batch, eta)
+                for i, param_name in enumerate(self.parameters.keys()):
+                    #print(f"beta: {beta}, type(beta): {type(beta)}")
+                    #print(f"squared_gradients[param_name]: {squared_gradients[param_name]}, type(squared_gradients[param_name]): {type(squared_gradients[param_name])}")
+                    gradient = (1 / len(mini_batch)) * np.sum([self.backprop(x, y)[0][i] for x, y in mini_batch])
+                    #print(f"gradient: {gradient}, type(gradient): {type(gradient)}")
+                    squared_gradients[param_name] = np.zeros_like(gradient, dtype=np.float64)
+                    squared_gradients[param_name] = beta * squared_gradients[param_name] + (1 - beta) * (gradient ** 2)
+                    self.parameters[param_name] -= (eta / (np.sqrt(squared_gradients[param_name]) + epsilon)) * gradient
             if test_data:
-                print "Epoch {0}: {1} / {2}".format(
-                    j, self.evaluate(test_data), n_test)
+                print ("Epoch {0}: {1} / {2}".format(
+                    j, self.evaluate(test_data), n_test))
             else:
-                print "Epoch {0} complete".format(j)
+                print ("Epoch {0} complete".format(j))
 
     def update_mini_batch(self, mini_batch, eta):
         """En ésta funcion se actualizan los valores de los bias y los pesos con el algoritmo de Stochastic Gradient Descent."""
@@ -87,7 +101,7 @@ class Network(object):
         # second-last layer, and so on.  It's a renumbering of the
         # scheme in the book, used here to take advantage of the fact
         # that Python can use negative indices in lists.
-        for l in xrange(2, self.num_layers):
+        for l in range(2, self.num_layers):
             z = zs[-l]
             sp = sigmoid_prime(z)
             delta = np.dot(self.weights[-l+1].transpose(), delta) * sp
