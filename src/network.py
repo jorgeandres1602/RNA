@@ -31,7 +31,7 @@ class Network(object):
             a = sigmoid(np.dot(w, a)+b)
         return a
 
-    def RMSprop(self, training_data, epochs, mini_batch_size, eta,
+     def RMSprop(self, training_data, epochs, mini_batch_size, eta,
             test_data=None):
         """Optimizador alternativo RMSprop"""
         
@@ -42,7 +42,7 @@ class Network(object):
         n = len(training_data)
         epsilon = 1e-8  #Parámetros
         beta = 0.9
-        squared_gradients = {parameter: np.zeros_like(parameter) for parameter in self.parameters}      
+        squared_gradients = {param_name: np.zeros_like(param_name) for param_name in self.parameters}      
         for j in range(epochs):
             random.shuffle(training_data)
             mini_batches = [
@@ -50,12 +50,14 @@ class Network(object):
                 for k in range(0, n, mini_batch_size)]
             for mini_batch in mini_batches:
                 self.update_mini_batch(mini_batch, eta)
-                for i, param_name in enumerate(self.parameters.keys()):
-                    #print(f"beta: {beta}, type(beta): {type(beta)}")
-                    #print(f"squared_gradients[param_name]: {squared_gradients[param_name]}, type(squared_gradients[param_name]): {type(squared_gradients[param_name])}")
-                    gradient = (1 / len(mini_batch)) * np.sum([self.backprop(x, y)[0][i] for x, y in mini_batch])
-                    #print(f"gradient: {gradient}, type(gradient): {type(gradient)}")
-                    squared_gradients[param_name] = np.zeros_like(gradient, dtype=np.float64)
+                for param_name in self.parameters.keys():
+                    gradient_sum = np.zeros_like(self.parameters[param_name])
+                    for x, y in mini_batch:
+                        output = self.feedforward(x)
+                        output_softmax = softmax(output)#Capa softmax
+                        x_grad = self.backprop(x, y)
+                        gradient_sum += x_grad['nabla_b'][param_name]
+                    gradient = gradient_sum / len(mini_batch)
                     squared_gradients[param_name] = beta * squared_gradients[param_name] + (1 - beta) * (gradient ** 2)
                     self.parameters[param_name] -= (eta / (np.sqrt(squared_gradients[param_name]) + epsilon)) * gradient
             if test_data:
@@ -64,23 +66,25 @@ class Network(object):
             else:
                 print ("Epoch {0} complete".format(j))
 
-    def update_mini_batch(self, mini_batch, eta):
+   def update_mini_batch(self, mini_batch, eta):
         """En ésta funcion se actualizan los valores de los bias y los pesos con el algoritmo de Stochastic Gradient Descent."""
-        nabla_b = [np.zeros(b.shape) for b in self.biases]
-        nabla_w = [np.zeros(w.shape) for w in self.weights]
+        nabla_b = {param_name: np.zeros(b.shape, dtype=float) for param_name, b in enumerate(self.biases)}#Cambio de formato a diccionarios en lugar de listas
+        nabla_w = {param_name: np.zeros(w.shape, dtype=float) for param_name, w in enumerate(self.weights)}#Se intentó colocar dtype=float pero no solucionó el problema
         for x, y in mini_batch:
-            delta_nabla_b, delta_nabla_w = self.backprop(x, y)
-            nabla_b = [nb+dnb for nb, dnb in zip(nabla_b, delta_nabla_b)]
-            nabla_w = [nw+dnw for nw, dnw in zip(nabla_w, delta_nabla_w)]
-        self.weights = [w-(eta/len(mini_batch))*nw
-                        for w, nw in zip(self.weights, nabla_w)]
-        self.biases = [b-(eta/len(mini_batch))*nb
-                       for b, nb in zip(self.biases, nabla_b)]
+            delta_nabla = self.backprop(x, y)
+            for param_name in self.parameters.keys():
+                nabla_b[param_name].append(delta_nabla['nabla_b'][param_name])
+                nabla_w[param_name].append(delta_nabla['nabla_w'][param_name])
 
-    def backprop(self, x, y):
+    
+        for param_name in self.parameters.keys():
+            self.weights[param_name] -= (eta / len(mini_batch)) * nabla_w[param_name]
+            self.biases[param_name] -= (eta / len(mini_batch)) * nabla_b[param_name]
+
+    def backprop(self, x, y):#función modificada para implementar elc ross entropy
         """Regresa un vector de dos dimensiones que contiene a nabla b y nabla w que representan el gradiente de la función de costo."""
-        nabla_b = [np.zeros(b.shape) for b in self.biases]
-        nabla_w = [np.zeros(w.shape) for w in self.weights]
+        nabla_b = {param_name: np.zeros(b.shape) for param_name, b in enumerate(self.biases)} #Diccionarios de nabla para operarlos en el mini batch
+        nabla_w = {param_name: np.zeros(w.shape) for param_name, w in enumerate(self.weights)}
         # feedforward
         activation = x
         activations = [x] # list to store all the activations, layer by layer
@@ -95,19 +99,13 @@ class Network(object):
             sigmoid_prime(zs[-1])
         nabla_b[-1] = delta
         nabla_w[-1] = np.dot(delta, activations[-2].transpose())
-        # Note that the variable l in the loop below is used a little
-        # differently to the notation in Chapter 2 of the book.  Here,
-        # l = 1 means the last layer of neurons, l = 2 is the
-        # second-last layer, and so on.  It's a renumbering of the
-        # scheme in the book, used here to take advantage of the fact
-        # that Python can use negative indices in lists.
         for l in range(2, self.num_layers):
             z = zs[-l]
             sp = sigmoid_prime(z)
             delta = np.dot(self.weights[-l+1].transpose(), delta) * sp
             nabla_b[-l] = delta
             nabla_w[-l] = np.dot(delta, activations[-l-1].transpose())
-        return (nabla_b, nabla_w)
+        return {'nabla_b': nabla_b, 'nabla_w': nabla_w}
 
     def evaluate(self, test_data):
         """Regresa el número de imágenes que adivinó correctamente."""
@@ -127,3 +125,7 @@ def sigmoid(z):
 def sigmoid_prime(z):
     """La derivada de la función de activación."""
     return sigmoid(z)*(1-sigmoid(z))
+#Función para la capa softmax
+def softmax(x):
+    exp_x = np.exp(x-np.max(x))
+    return exp_x / exp_x.sum(axis=0, keepdims=True)
