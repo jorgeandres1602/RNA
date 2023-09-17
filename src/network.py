@@ -1,6 +1,6 @@
 '''Red neuronal con keras'''
 
-'''Experimento 3'''
+'''Experimento 2 con regularización L1'''
 
 '''Instalar comet e importarlo'''
 %pip install comet_ml
@@ -27,10 +27,10 @@ experiment = comet_ml.Experiment(
 )
 '''Definir parámetros'''
 import numpy as np
-learning_rate=0.5
+learning_rate=2
 
 parameters = {
-    "batch_size": 200,
+    "batch_size": 100,
     "epochs": 30,
     "optimizer": "rmsprop",
     "loss": "categorical_crossentropy",
@@ -56,8 +56,10 @@ y_testc = keras.utils.to_categorical(y_test, num_classes)
 model = Sequential()
 model.add(Input(shape=(28,28))) 
 model.add(Flatten()) 
-model.add(Dense(100, activation='sigmoid')) 
-model.add(Dense(150, activation='sigmoid'))
+model.add(Dense(150, activation='relu')) 
+model.add(Dense(200, activation='selu', kernel_regularizer=regularizers.L1(0.01)))
+model.add(Dropout(0.2))
+model.add(Dense(300, activation='sigmoid'))
 model.add(Dense(10, activation='sigmoid'))
 
 model.summary()
@@ -81,4 +83,4 @@ score = model.evaluate(x_test, y_testc, verbose=1) #evaluar la eficiencia del mo
 print(score)
 
 '''Guardar el modelo'''
-model.save("86Ef.h5")
+model.save("97Ef.h5")
