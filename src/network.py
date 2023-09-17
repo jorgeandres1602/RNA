@@ -1,6 +1,6 @@
 '''Red neuronal con keras'''
 
-'''Experimento 1'''
+'''Experimento 2'''
 
 '''Instalar comet e importarlo'''
 %pip install comet_ml
@@ -56,8 +56,10 @@ y_testc = keras.utils.to_categorical(y_test, num_classes)
 model = Sequential()
 model.add(Input(shape=(28,28))) 
 model.add(Flatten()) 
-model.add(Dense(100, activation='sigmoid')) 
-model.add(Dense(400, activation='selu'))
+model.add(Dense(150, activation='relu')) 
+model.add(Dense(200, activation='selu'))
+model.add(Dropout(0.2))
+model.add(Dense(300, activation='sigmoid'))
 model.add(Dense(10, activation='sigmoid'))
 
 model.summary()
@@ -81,4 +83,4 @@ score = model.evaluate(x_test, y_testc, verbose=1) #evaluar la eficiencia del mo
 print(score)
 
 '''Guardar el modelo'''
-model.save("97Ef.h5")
+model.save("98Ef.h5")
