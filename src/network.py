@@ -1,5 +1,13 @@
 '''Red neuronal con keras'''
 
+'''Experimento 1'''
+
+'''Instalar comet e importarlo'''
+%pip install comet_ml
+
+import comet_ml
+comet_ml.init(project_name="Experimentos tarea 3")
+
 '''Importar librerias'''
 import tensorflow as tf
 from tensorflow import keras
@@ -10,47 +18,67 @@ from tensorflow.keras.optimizers import RMSprop, SGD
 from tensorflow.keras import regularizers
 import numpy as np
 
+'''Parámetros comet'''
+experiment = comet_ml.Experiment(
+    auto_histogram_weight_logging=True,
+    auto_histogram_gradient_logging=True,
+    auto_histogram_activation_logging=True,
+    log_code=True,
+)
 '''Definir parámetros'''
-learning_rate = 3
-epochs = 30
-batch_size = 10
+import numpy as np
+learning_rate=2
+
+parameters = {
+    "batch_size": 100,
+    "epochs": 30,
+    "optimizer": "rmsprop",
+    "loss": "categorical_crossentropy",
+}
+
+experiment.log_parameters(parameters)
 
 ''''Cargar los datos'''
 dataset=mnist.load_data()
-
-'''Colocar los datos en la forma adecuada para leerlos'''
-dat=np.array(dataset)
-print(dat[1,1].shape)
 (x_train, y_train), (x_test, y_test) = dataset
 
-'''Normalizar las imagenes'''
-x_trainv = x_train.reshape(60000, 784)
-x_testv = x_test.reshape(10000, 784)
-x_trainv = x_trainv.astype('float32')
-x_testv = x_testv.astype('float32')
+x_train = x_train.astype('float32')
+x_test = x_test.astype('float32')
 
-x_trainv /= 255  # x_trainv = x_trainv/255
-x_testv /= 255
+x_train /= 255  # x_trainv = x_trainv/255
+x_test /= 255
 
-'''Definir el tamaño de la salida de nuestra red'''
 num_classes=10
 y_trainc = keras.utils.to_categorical(y_train, num_classes)
 y_testc = keras.utils.to_categorical(y_test, num_classes)
 
 '''Añadir las capas de la red'''
 model = Sequential()
-model.add(Dense(100, activation='sigmoid', input_shape=(784,)))
-model.add(Dense(num_classes, activation='sigmoid'))
+model.add(Input(shape=(28,28))) 
+model.add(Flatten()) 
+model.add(Dense(100, activation='sigmoid')) 
+model.add(Dense(400, activation='selu'))
+model.add(Dense(10, activation='sigmoid'))
 
+model.summary()
+
+'''Seleccionar ubicación para guardar el modelo'''
+filepath = "best_model.hdf5"
+
+checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
 '''Cargar la red'''
 model.compile(loss=tf.keras.losses.MeanSquaredError(),optimizer=SGD(learning_rate=learning_rate),metrics=['accuracy'])
 
 '''Iniciar el entrenamiento'''
-history = model.fit(x_trainv, y_trainc,
-                    batch_size=batch_size,
-                    epochs=epochs,
+model.fit(x_train, y_trainc,
+                    batch_size=parameters['batch_size'],
+                    epochs=parameters["epochs"],
                     verbose=1,
-                    validation_data=(x_testv, y_testc)
-                    )
+                    validation_data=(x_test, y_testc),
+                    callbacks=[checkpoint])
+'''Evaluar el modelo'''
+score = model.evaluate(x_test, y_testc, verbose=1) #evaluar la eficiencia del modelo
+print(score)
 
-model.summary()
+'''Guardar el modelo'''
+model.save("97Ef.h5")
