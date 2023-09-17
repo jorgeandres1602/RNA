@@ -1,6 +1,6 @@
 '''Red neuronal con keras'''
 
-'''Experimento 2 con regularización L1L2'''
+'''Experimento 2 con Dropout y regularización L1L2'''
 
 '''Instalar comet e importarlo'''
 %pip install comet_ml
@@ -60,6 +60,7 @@ model.add(Dense(150, activation='relu'))
 model.add(Dense(200, activation='selu', kernel_regularizer=regularizers.L1L2(l1=1e-5, l2=1e-4)))
 model.add(Dropout(0.2))
 model.add(Dense(300, activation='sigmoid'))
+model.add(Dropout(0.2))
 model.add(Dense(10, activation='sigmoid'))
 
 model.summary()
